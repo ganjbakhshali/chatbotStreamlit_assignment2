@@ -1,3 +1,62 @@
-*.db
-*.pdf
-*.env
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*,cover
+.hypothesis/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDE - VSCode
+.vscode/
+
+# Environment
+.env
+
+# Logs
+logs/
+*.log
+
+# Ignore secret keys that may be in the .env file
+.env
+
+# Ignore database files
+*.sqlite
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
