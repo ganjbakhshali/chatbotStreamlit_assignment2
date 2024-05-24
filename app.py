@@ -1,48 +1,115 @@
 import streamlit as st
-from models import create_db_and_tables, Message, engine
-from auth import auth_widget, cookies
-from sqlmodel import Session
-from datetime import datetime
-from edenai import edenai
+from models import User, Message
+from sqlmodel import Field, Session, SQLModel, create_engine, select, Relationship
+from streamlit_cookies_manager import EncryptedCookieManager
+from sqlalchemy.exc import NoResultFound
+from typing import Optional
 
-edenai_client = edenai.Client(api_key='API_KEY')
 
-create_db_and_tables()
-cookies()
+@st.cache_resource
+def connect_to_db():
+    engine = create_engine("sqlite:///dbchat.db")
+    return engine
 
-if "username" not in cookies:
-    auth_widget()
-    st.stop()
+engine = connect_to_db()
 
-username = cookies["username"]
+def get_user_by_email(session, email):
+    try:
+        return session.exec(select(User).where(User.email == email)).one()
+    except NoResultFound:
+        return None
 
-def save_message(user_id, message):
+def authenticate_user(email: str, password: str) -> Optional[User]:
     with Session(engine) as session:
-        msg = Message(user_id=user_id, message=message, timestamp=datetime.utcnow())
-        session.add(msg)
+        user = get_user_by_email(session, email)
+        if user and user.password == password:
+            return user
+    return None
+
+def get_user_messages(user_id):
+    with Session(engine) as session:
+        return session.exec(select(Message).where(Message.user_id == user_id)).all()
+
+def ai(user_text_message):
+    return user_text_message * 2
+
+def register_user(name, email, password):
+    with Session(engine) as session:
+        if get_user_by_email(session, email):
+            return None  # User already exists
+        
+        user = User(name=name, email=email, password=password)
+        session.add(user)
+        session.commit()  # Commit before refreshing
+        session.refresh(user)  # Refresh the user object
+        return user
+
+def process(user_text_message, user_id):
+    ai_text = ai(user_text_message)
+    
+    user_message = Message(text=user_text_message, type="user", user_id=user_id)
+    ai_message = Message(text=ai_text, type="ai", user_id=user_id)
+    
+    with Session(engine) as session:
+        session.add(user_message)
+        session.add(ai_message)
         session.commit()
+    
+    st.session_state.messages.append({'type': "user", "text": user_text_message})
+    st.session_state.messages.append({'type': "ai", "text": ai_text})
+    return ai_text
 
-def get_user_id(username):
-    with Session(engine) as session:
-        user = session.exec(select(User).where(User.username == username)).first()
-        return user.id if user else None
+if "user" not in st.session_state:
+    st.session_state.user = None
 
-st.title("ChatBot")
+if not st.session_state.get('authenticated', False):
+    st.title("Login or Register")
+    
+    choice = st.selectbox("Select Action", ["Login", "Register"])
+    
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
+    
+    if choice == "Register":
+        name = st.text_input("Name")
+        if st.button("Register"):
+            user = register_user(name, email, password)
+            if user:
+                st.session_state.authenticated = True
+                st.session_state.user = user
+                st.session_state.messages = []  # Initialize messages list
+                st.write(f"Welcome, {st.session_state.user.name}")
+                st.rerun()
+            else:
+                st.error("Registration failed")
+    elif choice == "Login":
+        if st.button("Login"):
+            user = authenticate_user(email, password)
+            if user:
+                st.session_state.authenticated = True
+                st.session_state.user = user
+                st.session_state.messages = []  # Initialize messages list
+                st.write(f"Welcome, {st.session_state.user.name}")
+                st.rerun()
+            else:
+                st.error("Login failed")
 
-message = st.text_input("Your message")
-if st.button("Send"):
-    user_id = get_user_id(username)
-    if user_id and message:
-        save_message(user_id, message)
-        response = edenai_client.chat.send_message(text=message, provider='openai')
-        bot_message = response.get('text', 'Error: No response')
-        st.write(f"Bot: {bot_message}")
-        save_message(user_id, bot_message)
-
-# Display chat history
-st.header("Chat History")
-with Session(engine) as session:
-    user_id = get_user_id(username)
-    messages = session.exec(select(Message).where(Message.user_id == user_id)).all()
-    for msg in messages:
-        st.write(f"[{msg.timestamp}] {msg.message}")
+if st.session_state.user:
+    user_id = st.session_state.user.id
+    
+    messages = get_user_messages(user_id)
+        
+    st.title("Chat Application")
+    
+    for message in messages:
+        with st.chat_message(message.type):
+            st.write(message.text)
+    
+    if user_text_message := st.chat_input("Say something ...!"):
+        ai_text = process(user_text_message, user_id)
+        
+        with st.chat_message("user"):
+            st.write(user_text_message)
+        
+        with st.chat_message("ai"):
+            st.write(ai_text)

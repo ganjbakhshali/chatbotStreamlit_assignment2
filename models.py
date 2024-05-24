@@ -1,22 +1,23 @@
-from sqlmodel import SQLModel, Field, create_engine, Session, select
 from typing import Optional
-from datetime import datetime
+from sqlmodel import Field,Session,SQLModel,create_engine,select,Relationship
 
-class User(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    username: str
-    password: str
+class User(SQLModel,table=True):
+    __tabel_args__= {'extend_existing':True}
+    
+    id: Optional[int] = Field(default= None , primary_key=True)
+    name:str
+    email:str
+    password:str
+    messages:list["Message"]=Relationship(back_populates="user")
+    
+class Message(SQLModel,table=True):
+    __tabel_args__= {'extend_existing':True}
+    id: Optional[int] = Field(default= None , primary_key=True)
+    text:str
+    type:str
+    
+    user_id : int = Field(default=None, foreign_key="user.id")
+    user:User = Relationship(back_populates="messages")
+    
+    
 
-class Message(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int
-    message: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-sqlite_file_name = "chatbot.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
-
-engine = create_engine(sqlite_url)
-
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
