@@ -13,6 +13,18 @@ load_dotenv()
 api=os.getenv("API_KEY")
 @st.cache_resource
 def connect_to_db():
+    # Get MySQL connection details from environment variables
+    # DB_USERNAME = os.getenv("DB_USERNAME")
+    # DB_PASSWORD = os.getenv("DB_PASSWORD")
+    # DB_HOST = os.getenv("DB_HOST")
+    # DB_PORT = os.getenv("DB_PORT")
+    # DB_NAME = os.getenv("DB_NAME")
+
+    # # Create the MySQL engine
+    # DATABASE_URL = f"mysql+mysqlconnector://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    # engine = create_engine(DATABASE_URL)
+    
+    
     engine = create_engine("sqlite:///dbchat.db")
     return engine
 
