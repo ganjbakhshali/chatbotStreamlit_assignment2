@@ -1,11 +1,16 @@
+import json
+import requests
 import streamlit as st
 from models import User, Message
 from sqlmodel import Field, Session, SQLModel, create_engine, select, Relationship
 from streamlit_cookies_manager import EncryptedCookieManager
 from sqlalchemy.exc import NoResultFound
 from typing import Optional
+import os
+from dotenv import load_dotenv
 
-
+load_dotenv()
+api=os.getenv("API_KEY")
 @st.cache_resource
 def connect_to_db():
     engine = create_engine("sqlite:///dbchat.db")
@@ -31,7 +36,31 @@ def get_user_messages(user_id):
         return session.exec(select(Message).where(Message.user_id == user_id)).all()
 
 def ai(user_text_message):
-    return user_text_message * 2
+    
+    responce_txt="!"
+    try:
+        headers = {"Authorization": f"Bearer {api}"}
+
+        url = "https://api.edenai.run/v2/text/chat"
+        payload = {
+            "providers": "openai",
+            "text": user_text_message,
+            "chatbot_global_action": "Act as an assistant",
+            "previous_history": [],
+            "temperature": 0.0,
+            "max_tokens": 150,
+            "fallback_providers": ""
+        }
+
+        response = requests.post(url, json=payload, headers=headers)
+        result = json.loads(response.text)
+        print(result['openai']['generated_text'])
+        responce_txt=response.text
+    except:
+        responce_txt="API not working"
+
+    # return user_text_message * 2
+    return responce_txt
 
 def register_user(name, email, password):
     with Session(engine) as session:
